@@ -3,15 +3,32 @@ import SearchBar from './components/SearchBar';
 import StatusFilter from './components/StatusFilter';
 import TaskTable from './components/TaskTable';
 import { useTasks } from './hooks/useTasks';
+import { useDebounce } from './hooks/useDebounce';
+
+const PAGE_SIZE = 10;
 
 export default function App() {
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState('');
   const [page, setPage] = useState(1);
 
-  const { tasks, total, loading, error } = useTasks(query, status, page, 10);
+  // One request per pause in typing instead of one per keystroke
+  const debouncedQuery = useDebounce(query, 300);
 
-  const totalPages = Math.ceil(total / 10);
+  const { tasks, total, loading, error } = useTasks(debouncedQuery, status, page, PAGE_SIZE);
+
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+
+  // A new search or filter must start from page 1, otherwise we can land on a page
+  // that no longer exists for the new result set and see an empty table.
+  const handleQueryChange = (value) => {
+    setQuery(value);
+    setPage(1);
+  };
+  const handleStatusChange = (value) => {
+    setStatus(value);
+    setPage(1);
+  };
 
   return (
     <div className="app">
@@ -21,8 +38,8 @@ export default function App() {
       </header>
 
       <div className="controls">
-        <SearchBar value={query} onChange={setQuery} />
-        <StatusFilter value={status} onChange={setStatus} />
+        <SearchBar value={query} onChange={handleQueryChange} />
+        <StatusFilter value={status} onChange={handleStatusChange} />
       </div>
 
       <TaskTable tasks={tasks} loading={loading} error={error} />
